@@ -21,6 +21,7 @@
 
 auto main(void) -> int {
     gaia::input_directory = "src/";
+    gaia::echo = true;
     gaia::add_file("main.cpp");
     gaia::add_flags({ "-Wall", "-Wextra" });
     gaia::output_directory = "build/";
@@ -30,6 +31,7 @@ auto main(void) -> int {
 }
 
 auto recompile_gaia() -> void;
+auto compilation_invalid() -> bool;
 
 auto combine_vector(const std::vector<std::string> &input, const std::string &prefix = "") -> std::string;
 
@@ -59,8 +61,11 @@ auto gaia::build() -> void {
         " " + flags
         + " " + files;
 
-    echo("%s", command.c_str());
-    std::system(command.c_str());
+
+    if (compilation_invalid()) {
+        echo("%s", command.c_str());
+        std::system(command.c_str());
+    }
 
     for (const auto extra : gaia::extra_commands) {
         info("running extra command \"%s\"", extra.c_str());
@@ -104,8 +109,8 @@ auto recompile_gaia() -> void {
     struct stat gaia_result;
 
     if (stat(gaia_src_file, &gaia_src_result) == 0 && stat(gaia_file, &gaia_result) == 0) {
-        auto src_time = gaia_src_result.st_mtim;
-        auto gaia_time = gaia_result.st_mtim;
+        const auto src_time = gaia_src_result.st_mtim;
+        const auto gaia_time = gaia_result.st_mtim;
         
         // checks if the source code has changed since gaia was last compiled
         if (src_time.tv_sec > gaia_time.tv_sec) {
@@ -118,6 +123,26 @@ auto recompile_gaia() -> void {
     } else {
         error("could not determine file statistics.");
     }
+}
+
+auto compilation_invalid() -> bool {
+    const std::string final_output = gaia::output_directory + gaia::output_name;
+    struct stat output_result;
+
+    if (stat(final_output.c_str(), &output_result) != 0) return true;
+
+    for (const auto file : gaia::input_files) {
+        struct stat file_result;
+
+        if (stat((gaia::input_directory + file).c_str(), &file_result) != 0) return true;
+
+        const auto file_mod_time = file_result.st_mtim.tv_sec;
+        const auto final_output_mod_time = output_result.st_mtim.tv_sec;
+
+        if (file_mod_time > final_output_mod_time) return true;
+    }
+
+    return false;
 }
 
 // combines values of a string array into a new space separated string

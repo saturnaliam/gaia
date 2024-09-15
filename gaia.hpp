@@ -8,6 +8,7 @@
 
 namespace gaia {
     inline bool echo = false;                       // if the commands that are run should be echoed
+    inline bool force_compile = false;              // if compilation should be forced, even if no code was updated
     inline std::string compiler = "";               // the compiler to use, defaults to the one used to compile gaia
     inline std::string output_name = "main";        // the output filename, defaults to main
     inline std::string input_directory = "";        // the directory that contains the input files, appended to the start of each input file

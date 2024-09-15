@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <numeric>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -19,19 +20,25 @@
 #define echo(msg, ...) \
     if (gaia::echo) printf("" msg "\n", ##__VA_ARGS__)
 
-auto main(void) -> int {
-    gaia::input_directory = "src/";
-    gaia::echo = true;
-    gaia::add_file("main.cpp");
-    gaia::add_flags({ "-Wall", "-Wextra" });
-    gaia::output_directory = "build/";
-    gaia::build();
+auto main(const int argc, const char **argv) -> int {
+    if (argc > 1) {
+        // only one argument is supported rn, so we only care abt one
+        const auto arg = std::string(argv[1]);
+        if (arg == "-f" || arg == "--force") {
+            gaia::force_compile = true;
+        }
+    }
 
+    gaia::output_directory = "build/";
+    gaia::add_file("src/main.cpp");
+    gaia::build();
+    /* PLACE BUILD CODE HERE */
     return 0;
 }
 
 auto recompile_gaia() -> void;
 auto compilation_invalid() -> bool;
+auto create_build_directory() -> void;
 
 auto combine_vector(const std::vector<std::string> &input, const std::string &prefix = "") -> std::string;
 
@@ -48,6 +55,7 @@ auto gaia::build() -> void {
     }
 
     recompile_gaia();
+    create_build_directory();
 
     if (gaia::input_files.size() == 0) {
         error("no input files given!");
@@ -63,8 +71,11 @@ auto gaia::build() -> void {
 
 
     if (compilation_invalid()) {
+        info("compiling program");
         echo("%s", command.c_str());
         std::system(command.c_str());
+    } else {
+        info("no code updated, skipping compilation");
     }
 
     for (const auto extra : gaia::extra_commands) {
@@ -105,12 +116,12 @@ auto gaia::add_flags(const std::vector<std::string> &flags) -> void {
 auto recompile_gaia() -> void {
     const char *gaia_src_file = "gaia.cpp";
     const char *gaia_file = "gaia";
-    struct stat gaia_src_result;
-    struct stat gaia_result;
+    struct stat gaia_src_stat;
+    struct stat gaia_stat;
 
-    if (stat(gaia_src_file, &gaia_src_result) == 0 && stat(gaia_file, &gaia_result) == 0) {
-        const auto src_time = gaia_src_result.st_mtim;
-        const auto gaia_time = gaia_result.st_mtim;
+    if (stat(gaia_src_file, &gaia_src_stat) == 0 && stat(gaia_file, &gaia_stat) == 0) {
+        const auto src_time = gaia_src_stat.st_mtim;
+        const auto gaia_time = gaia_stat.st_mtim;
         
         // checks if the source code has changed since gaia was last compiled
         if (src_time.tv_sec > gaia_time.tv_sec) {
@@ -125,27 +136,37 @@ auto recompile_gaia() -> void {
     }
 }
 
+// returns if the files have to be recompiled
 auto compilation_invalid() -> bool {
-    const std::string final_output = gaia::output_directory + gaia::output_name;
-    struct stat output_result;
+    if (gaia::force_compile) return true;
+    const std::string output_file = gaia::output_directory + gaia::output_name;
+    struct stat output_stat;
 
-    if (stat(final_output.c_str(), &output_result) != 0) return true;
+    if (stat(output_file.c_str(), &output_stat) != 0) return true;
 
-    for (const auto file : gaia::input_files) {
-        struct stat file_result;
+    for (std::string file : gaia::input_files) {
+        file = gaia::input_directory + file;
+        struct stat file_stat;
 
-        if (stat((gaia::input_directory + file).c_str(), &file_result) != 0) return true;
+        if (stat(file.c_str(), &file_stat) != 0) return true;
 
-        const auto file_mod_time = file_result.st_mtim.tv_sec;
-        const auto final_output_mod_time = output_result.st_mtim.tv_sec;
+        const auto file_mod_time = file_stat.st_mtim.tv_sec;
+        const auto output_mod_time = output_stat.st_mtim.tv_sec;
 
-        if (file_mod_time > final_output_mod_time) return true;
+        if (file_mod_time > output_mod_time) return true;
     }
 
     return false;
 }
 
-// combines values of a string array into a new space separated string
+auto create_build_directory() -> void {
+    namespace fs = std::filesystem;
+    if (!fs::exists(gaia::output_directory)) {
+        fs::create_directory(gaia::output_directory);
+    }
+}
+
+// combines a vector into a space separated string
 auto combine_vector(const std::vector<std::string> &input, const std::string &prefix) -> std::string {
     if (input.size() == 0) return "";
 

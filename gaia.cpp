@@ -1,15 +1,15 @@
 #include "gaia.hpp"
 
-#include <cstdio>
-#include <numeric>
 #include <algorithm>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <iostream>
+#include <cstdio>
 #include <cstdlib>
+#include <numeric>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 auto main(void) -> int {
-    gaia::input_files = { "main.cpp", "afds.cpp" };
+    gaia::input_files = { "main.cpp" };
+    gaia::flags = { "-Wall", "-Wextra" };
     gaia::build();
     return 0;
 }
@@ -24,7 +24,7 @@ auto main(void) -> int {
 
 auto recompile_gaia() -> void;
 
-auto combine_vector(const std::vector<std::string> &input) -> std::string;
+auto combine_vector(const std::vector<std::string> &input, const std::string &prefix = "") -> std::string;
 
 auto gaia::build() -> void {
     if (gaia::compiler == "") {
@@ -44,8 +44,19 @@ auto gaia::build() -> void {
         error("no input files given!");
     }
 
-    const std::string files = combine_vector(gaia::input_files);
-    std::cout << files;
+    if (gaia::output_name == "") {
+        gaia::output_name = "main";
+    }
+
+    const std::string files = combine_vector(gaia::input_files, gaia::input_directory);
+    const std::string flags = combine_vector(gaia::flags);
+
+    const std::string command = gaia::compiler +
+        " -o " + gaia::output_directory + gaia::output_name +
+        " " + flags
+        + " " + files;
+
+    std::system(command.c_str());
 }
 
 // checks if the program needs to be recompiled
@@ -73,12 +84,13 @@ auto recompile_gaia() -> void {
 }
 
 // combines values of a string array into a new space separated string
-auto combine_vector(const std::vector<std::string> &input) -> std::string {
+auto combine_vector(const std::vector<std::string> &input, const std::string &prefix) -> std::string {
     std::vector<std::string> input_spaces(input.size());
     
     std::transform(input.begin(), input.end(), input_spaces.begin(),
-        [](const auto &element) { return element + " "; });
+        [prefix](const auto &element) { return prefix + element + " "; });
 
-
-    return std::reduce(input_spaces.begin(), input_spaces.end(), std::string(""));
+    std::string combined = std::reduce(input_spaces.begin(), input_spaces.end(), std::string(""));
+    combined.pop_back(); // hacky way to get rid of the final space
+    return combined;
 }

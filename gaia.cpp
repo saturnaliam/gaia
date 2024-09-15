@@ -1,12 +1,15 @@
 #include "gaia.hpp"
 
 #include <cstdio>
-#include <filesystem>
+#include <numeric>
+#include <algorithm>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <iostream>
 #include <cstdlib>
 
 auto main(void) -> int {
+    gaia::input_files = { "main.cpp", "afds.cpp" };
     gaia::build();
     return 0;
 }
@@ -18,7 +21,10 @@ auto main(void) -> int {
 #define info(msg, ...) \
     printf("[i] " msg "\n", ##__VA_ARGS__)
 
+
 auto recompile_gaia() -> void;
+
+auto combine_vector(const std::vector<std::string> &input) -> std::string;
 
 auto gaia::build() -> void {
     if (gaia::compiler == "") {
@@ -33,6 +39,13 @@ auto gaia::build() -> void {
     }
 
     recompile_gaia();
+
+    if (gaia::input_files.size() == 0) {
+        error("no input files given!");
+    }
+
+    const std::string files = combine_vector(gaia::input_files);
+    std::cout << files;
 }
 
 // checks if the program needs to be recompiled
@@ -46,7 +59,7 @@ auto recompile_gaia() -> void {
         auto src_time = gaia_src_result.st_mtim;
         auto gaia_time = gaia_result.st_mtim;
         
-        // checks if 
+        // checks if the source code has changed since gaia was last compiled
         if (src_time.tv_sec > gaia_time.tv_sec) {
             info("recompiling gaia");
             const std::string compile_command = gaia::compiler + " -o gaia gaia.cpp";
@@ -57,4 +70,15 @@ auto recompile_gaia() -> void {
     } else {
         error("could not determine file statistics.");
     }
-} 
+}
+
+// combines values of a string array into a new space separated string
+auto combine_vector(const std::vector<std::string> &input) -> std::string {
+    std::vector<std::string> input_spaces(input.size());
+    
+    std::transform(input.begin(), input.end(), input_spaces.begin(),
+        [](const auto &element) { return element + " "; });
+
+
+    return std::reduce(input_spaces.begin(), input_spaces.end(), std::string(""));
+}

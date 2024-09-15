@@ -8,6 +8,7 @@ namespace gaia {
     inline std::string compiler = "";
     inline std::string output_name = "";
     inline std::vector<std::string> flags;
+    inline std::vector<std::string> input_files;
 
     auto build() -> void;
 }

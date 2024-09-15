@@ -11,6 +11,7 @@ there are 8 different variables to set when using gaia, but only 1 is required t
 | ------------------------ | ----------------------------------------------------------------- | -----------------------------------|
 | `gaia::input_files`*     | the files to be compiled                                          | nothing                            |
 | `gaia::echo`             | controls if the commands run should be printed to the console     | `false`                            |
+| `gaia::force_compile`    | forces the code to recompile, even if nothing was changed         | `false`                            |
 | `gaia::compiler`         | the compiler to be used                                           | whatever was used to compile`gaia` |
 | `gaia::output_name`      | the name to be used for the executable                            | `main`                             |
 | `gaia::input_directory`  | the directory input files are in, prepended directly to the files | nothing                            |

@@ -74,7 +74,7 @@ auto gaia::build() -> void {
     if (compilation_invalid()) {
         info("compiling program");
         echo("%s", command.c_str());
-        std::system(command.c_str());
+        if (std::system(command.c_str()) != 0) error("error during compilation");
     } else {
         info("no code updated, skipping compilation");
     }

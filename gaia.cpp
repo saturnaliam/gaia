@@ -26,11 +26,14 @@ auto main(const int argc, const char **argv) -> int {
         const auto arg = std::string(argv[1]);
         if (arg == "-f" || arg == "--force") {
             gaia::force_compile = true;
+        } else if (arg == "-e" || arg == "--echo") {
+            gaia::echo = true;
         }
     }
 
     gaia::output_directory = "build/";
     gaia::add_file("src/main.cpp");
+    gaia::add_command("echo $compile_cmd");
     gaia::build();
     /* PLACE BUILD CODE HERE */
     return 0;
@@ -69,6 +72,9 @@ auto gaia::build() -> void {
         " " + flags
         + " " + files;
 
+    if (setenv("compile_cmd", command.c_str(), 1) == -1) {
+        error("could not set environment variable");
+    }
 
     if (compilation_invalid()) {
         info("compiling program");
@@ -79,7 +85,7 @@ auto gaia::build() -> void {
     }
 
     for (const auto extra : gaia::extra_commands) {
-        info("running extra command \"%s\"", extra.c_str());
+        info("running extra command");
         echo("%s", command.c_str());
         std::system(extra.c_str());
     }
@@ -127,8 +133,9 @@ auto recompile_gaia() -> void {
         if (src_time.tv_sec > gaia_time.tv_sec) {
             info("recompiling gaia");
             const std::string compile_command = gaia::compiler + " -o gaia gaia.cpp";
+            const std::string run_command = std::string("./gaia") + (gaia::force_compile ? " -f" : "");
             std::system(compile_command.c_str());
-            std::system("./gaia");
+            std::system(run_command.c_str());
             std::exit(0);
         }
     } else {

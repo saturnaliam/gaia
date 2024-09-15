@@ -29,6 +29,8 @@ there are a number of helper functions to help with setting these values.
 | `gaia::add_command(const std::string &command)`                | adds a single command.  |
 | `gaia::add_commands(const std::vector<std::string> &commands)` | adds multiple commands. |
 
+during runtime, it sets a `compile_cmd` environment variable, which can be used in any extra commands to reference the command used.
+
 # example
 ```cpp
 /// inside gaia.cpp

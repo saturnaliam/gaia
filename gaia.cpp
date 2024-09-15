@@ -18,6 +18,11 @@
     if (gaia::echo) printf("" msg "\n", ##__VA_ARGS__)
 
 auto main(void) -> int {
+    gaia::input_directory = "src/";
+    gaia::add_file("main.cpp");
+    gaia::add_flags({ "-Wall", "-Wextra" });
+    gaia::output_directory = "build/";
+    gaia::build();
 
     return 0;
 }
@@ -115,6 +120,8 @@ auto recompile_gaia() -> void {
 
 // combines values of a string array into a new space separated string
 auto combine_vector(const std::vector<std::string> &input, const std::string &prefix) -> std::string {
+    if (input.size() == 0) return "";
+
     std::vector<std::string> input_spaces(input.size());
     
     std::transform(input.begin(), input.end(), input_spaces.begin(),

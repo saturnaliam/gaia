@@ -1,3 +1,5 @@
+// gaia is the most GOATED build tool for C++, created by Lucia Cover
+
 #include "gaia.hpp"
 
 #include <algorithm>

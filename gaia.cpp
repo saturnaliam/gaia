@@ -9,6 +9,7 @@
 
 auto main(void) -> int {
     gaia::input_files = { "main.cpp" };
+    gaia::extra_commands = { "echo hi" };
     gaia::flags = { "-Wall", "-Wextra" };
     gaia::build();
     return 0;
@@ -21,6 +22,8 @@ auto main(void) -> int {
 #define info(msg, ...) \
     printf("[i] " msg "\n", ##__VA_ARGS__)
 
+#define echo(msg, ...) \
+    if (gaia::echo) printf("" msg "\n", ##__VA_ARGS__)
 
 auto recompile_gaia() -> void;
 
@@ -56,7 +59,14 @@ auto gaia::build() -> void {
         " " + flags
         + " " + files;
 
+    echo("%s", command.c_str());
     std::system(command.c_str());
+
+    for (const auto extra : gaia::extra_commands) {
+        info("running extra command \"%s\"", extra.c_str());
+        echo("%s", command.c_str());
+        std::system(extra.c_str());
+    }
 }
 
 // checks if the program needs to be recompiled

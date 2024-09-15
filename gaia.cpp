@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <numeric>
+#include <set>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -20,30 +21,24 @@
 #define echo(msg, ...) \
     if (gaia::echo) printf("" msg "\n", ##__VA_ARGS__)
 
+auto recompile_gaia() -> void;
+auto compilation_invalid() -> bool;
+auto create_build_directory() -> void;
+
+auto handle_flags(const std::vector<std::string> &args) -> void;
+
+auto combine_vector(const std::vector<std::string> &input, const std::string &prefix = "") -> std::string;
+
 auto main(const int argc, const char **argv) -> int {
-    if (argc > 1) {
-        // only one argument is supported rn, so we only care abt one
-        const auto arg = std::string(argv[1]);
-        if (arg == "-f" || arg == "--force") {
-            gaia::force_compile = true;
-        } else if (arg == "-e" || arg == "--echo") {
-            gaia::echo = true;
-        }
-    }
+    handle_flags(std::vector<std::string>{argv, argv +argc});
 
     gaia::output_directory = "build/";
     gaia::add_file("src/main.cpp");
-    gaia::add_command("echo $compile_cmd");
     gaia::build();
     /* PLACE BUILD CODE HERE */
     return 0;
 }
 
-auto recompile_gaia() -> void;
-auto compilation_invalid() -> bool;
-auto create_build_directory() -> void;
-
-auto combine_vector(const std::vector<std::string> &input, const std::string &prefix = "") -> std::string;
 
 auto gaia::build() -> void {
     if (gaia::compiler == "") {
@@ -133,7 +128,7 @@ auto recompile_gaia() -> void {
         if (src_time.tv_sec > gaia_time.tv_sec) {
             info("recompiling gaia");
             const std::string compile_command = gaia::compiler + " -o gaia gaia.cpp";
-            const std::string run_command = std::string("./gaia") + (gaia::force_compile ? " -f" : "");
+            const std::string run_command = std::string("./gaia") + (gaia::force_compile ? " -f" : "") + (gaia::echo ? " -e" : "");
             std::system(compile_command.c_str());
             std::system(run_command.c_str());
             std::exit(0);
@@ -166,6 +161,23 @@ auto compilation_invalid() -> bool {
     return false;
 }
 
+auto handle_flags(const std::vector<std::string> &args) -> void {
+
+    for (auto arg = args.begin() + 1; arg != args.end(); arg++) {
+        const auto flag = [&arg](std::set<std::string> flags) -> bool {
+            const auto search = flags.find(*arg);
+            return search != flags.end();
+        };
+
+        if (flag({ "-f", "--force" })) {
+            gaia::force_compile = true;
+        } else if (flag({ "-e", "--echo" })) {
+            gaia::echo = true;
+        }
+    }
+}
+
+// creates build directory if it doesn't exist
 auto create_build_directory() -> void {
     namespace fs = std::filesystem;
     if (!fs::exists(gaia::output_directory)) {

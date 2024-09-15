@@ -7,14 +7,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-auto main(void) -> int {
-    gaia::input_files = { "main.cpp" };
-    gaia::extra_commands = { "echo hi" };
-    gaia::flags = { "-Wall", "-Wextra" };
-    gaia::build();
-    return 0;
-}
-
 #define error(msg, ...)                                   \
     fprintf(stderr, "[-] " msg "\n", ##__VA_ARGS__); \
     std::exit(1)
@@ -24,6 +16,11 @@ auto main(void) -> int {
 
 #define echo(msg, ...) \
     if (gaia::echo) printf("" msg "\n", ##__VA_ARGS__)
+
+auto main(void) -> int {
+
+    return 0;
+}
 
 auto recompile_gaia() -> void;
 
@@ -47,10 +44,6 @@ auto gaia::build() -> void {
         error("no input files given!");
     }
 
-    if (gaia::output_name == "") {
-        gaia::output_name = "main";
-    }
-
     const std::string files = combine_vector(gaia::input_files, gaia::input_directory);
     const std::string flags = combine_vector(gaia::flags);
 
@@ -67,6 +60,33 @@ auto gaia::build() -> void {
         echo("%s", command.c_str());
         std::system(extra.c_str());
     }
+}
+
+auto gaia::add_command(const std::string &command) -> void {
+    gaia::extra_commands.push_back(command);
+}
+
+auto gaia::add_commands(const std::vector<std::string> &commands) -> void {
+    std::for_each(commands.begin(), commands.end(),
+        [](const auto &command) { gaia::add_command(command); });
+}
+
+auto gaia::add_file(const std::string &file) -> void {
+    gaia::input_files.push_back(file);
+}
+
+auto gaia::add_files(const std::vector<std::string> &files) -> void {
+    std::for_each(files.begin(), files.end(),
+        [](const auto &file) { gaia::add_file(file); });
+}
+
+auto gaia::add_flag(const std::string &flag) -> void {
+    gaia::flags.push_back(flag);
+}
+
+auto gaia::add_flags(const std::vector<std::string> &flags) -> void {
+    std::for_each(flags.begin(), flags.end(),
+        [](const auto &flag) { gaia::add_flag(flag); });
 }
 
 // checks if the program needs to be recompiled

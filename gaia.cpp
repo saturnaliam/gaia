@@ -26,6 +26,7 @@
 auto add_many(const std::function<void(std::string)> &func, const std::vector<std::string> &input) -> void;
 auto combine_vector(const std::vector<std::string> &input, const std::string &prefix = "") -> std::string;
 auto get_file_mod_time(const std::string &filename) -> long;
+auto fix_directory(std::string &directory) -> void;
 
 auto recompile_gaia() -> void;
 auto compilation_invalid() -> bool;
@@ -36,7 +37,7 @@ auto handle_flags(const std::vector<std::string> &args) -> void;
 auto main(const int argc, const char **argv) -> int {
     handle_flags(std::vector<std::string>{argv, argv +argc});
 
-    gaia::output_directory = "build/";
+    gaia::output_directory = "build";
     gaia::add_file("src/main.cpp");
     gaia::build();
     /* PLACE BUILD CODE HERE */
@@ -44,6 +45,7 @@ auto main(const int argc, const char **argv) -> int {
 }
 
 auto gaia::build() -> void {
+    // setting the compiler to the one used for gaia, if none is given
     if (gaia::compiler == "") {
         #if defined(__clang__)
         gaia::compiler = "clang++";
@@ -61,6 +63,9 @@ auto gaia::build() -> void {
     if (gaia::input_files.size() == 0) {
         error("no input files given!");
     }
+
+    fix_directory(gaia::output_directory);
+    fix_directory(gaia::input_directory);
 
     const std::string files = combine_vector(gaia::input_files, gaia::input_directory);
     const std::string flags = combine_vector(gaia::flags);
@@ -179,6 +184,22 @@ auto add_many(const std::function<void(std::string)> &func, const std::vector<st
         [&func](const auto &e) { func(e); } );
 }
 
+// gets the time the file was last modified, -1 on failure.
+auto get_file_mod_time(const std::string &filename) -> long {
+    struct stat file_stat;
+
+    if (stat(filename.c_str(), &file_stat) != 0) return -1;
+
+    return file_stat.st_mtim.tv_sec;
+}
+
+// if a directory doesn't end in /, insert it.
+auto fix_directory(std::string &directory) -> void {
+    if (!directory.ends_with('/') && directory.length() > 0) {
+        directory.push_back('/');
+    }
+}
+
 auto gaia::add_command(const std::string &command) -> void {
     gaia::extra_commands.push_back(command);
 }
@@ -201,13 +222,4 @@ auto gaia::add_flag(const std::string &flag) -> void {
 
 auto gaia::add_flags(const std::vector<std::string> &flags) -> void {
     add_many(gaia::add_flag, flags);
-}
-
-// gets the time the file was last modified, -1 on failure.
-auto get_file_mod_time(const std::string &filename) -> long {
-    struct stat file_stat;
-
-    if (stat(filename.c_str(), &file_stat) != 0) return -1;
-
-    return file_stat.st_mtim.tv_sec;
 }

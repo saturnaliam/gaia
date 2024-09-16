@@ -48,6 +48,11 @@ auto main(const int argc, const char **argv) -> int {
     return 0;
 }
 
+/**
+ * @note this should be run last!
+ * @brief builds the program.
+ * 
+ */
 auto gaia::build() -> void {
     // setting the compiler to the one used for gaia, if none is given
     if (gaia::compiler == "") {
@@ -83,7 +88,9 @@ auto gaia::build() -> void {
     if (compilation_invalid()) {
         info("compiling program");
         echo("%s", compile_command.c_str());
-        if (std::system(compile_command.c_str()) != 0) error("error during compilation");
+
+        if (std::system(compile_command.c_str()) != 0)
+            error("error during compilation");
     } else {
         info("no code updated, skipping compilation");
     }
@@ -95,11 +102,15 @@ auto gaia::build() -> void {
     }
 }
 
-// checks if the program needs to be recompiled
+/**
+ * @brief recompiles gaia, if needed.
+ * 
+ */
 auto recompile_gaia() -> void {
     const long gaia_mod_time = get_file_mod_time("gaia");
     const long gaia_src_mod_time = get_file_mod_time("gaia.cpp");
 
+    // this probably means there's some fucked up file issue
     if (gaia_mod_time == -1 || gaia_src_mod_time == -1)
         error("error getting file modification times!");
     
@@ -121,7 +132,12 @@ auto recompile_gaia() -> void {
     }
 }
 
-// returns if the files have to be recompiled
+/**
+ * @brief checks if the program has to be recompiled.
+ * 
+ * @return true the program must be recompiled
+ * @return false the program won't be recompiled
+ */
 auto compilation_invalid() -> bool {
     if (gaia::force_compile) return true;
 
@@ -131,6 +147,7 @@ auto compilation_invalid() -> bool {
     
     const long output_mod_time = get_file_mod_time(output_file);
 
+    // this (usually) means the output file doesn't exist yet
     if (output_mod_time == -1) return true;
 
     for (std::string file : gaia::input_files) {
@@ -145,8 +162,12 @@ auto compilation_invalid() -> bool {
     return false;
 }
 
+/**
+ * @brief handles the flags passed into the program.
+ * 
+ * @param args argv
+ */
 auto handle_flags(const std::vector<std::string> &args) -> void {
-
     for (auto arg = args.begin() + 1; arg != args.end(); arg++) {
         const auto flag = [&arg](const std::set<std::string> &flags) -> bool {
             return flags.contains(*arg);
@@ -160,7 +181,10 @@ auto handle_flags(const std::vector<std::string> &args) -> void {
     }
 }
 
-// creates build directory if it doesn't exist
+/**
+ * @brief if the build directory doesn't exist, create it.
+ * 
+ */
 auto create_build_directory() -> void {
     namespace fs = std::filesystem;
     if (!fs::exists(gaia::output_directory)) {
@@ -168,27 +192,47 @@ auto create_build_directory() -> void {
     }
 }
 
-// combines a vector into a space separated string
+/**
+ * @brief combines a vecctor into a space separated string.
+ * 
+ * @param input the input vector
+ * @param prefix (optional) a prefix to be appended to each element
+ * @return std::string the new, space separated string
+ */
 auto combine_vector(const std::vector<std::string> &input, const std::string &prefix) -> std::string {
     if (input.size() == 0) return "";
 
     std::vector<std::string> input_spaces(input.size());
     
     std::transform(input.begin(), input.end(), input_spaces.begin(),
-        [prefix](const auto &element) { return prefix + element + " "; });
+        [prefix](const auto &element) {
+            return prefix + element + " ";
+        });
 
-    std::string combined = std::reduce(input_spaces.begin(), input_spaces.end(), std::string(""));
+    std::string combined = std::reduce(input_spaces.begin(), 
+        input_spaces.end(), std::string(""));
+
     combined.pop_back(); // hacky way to get rid of the final space
     return combined;
 }
 
-// runs foreach on each member of a vector
+/**
+ * @brief runs a function on every element of a vector
+ * 
+ * @param func the function to be run
+ * @param input the input vector
+ */
 auto add_many(const std::function<void(std::string)> &func, const std::vector<std::string> &input) -> void {
     std::for_each(input.begin(), input.end(),
         [&func](const auto &e) { func(e); } );
 }
 
-// gets the time the file was last modified, -1 on failure.
+/**
+ * @brief returns the modification date of the file
+ * 
+ * @param filename the file
+ * @return long the modificiation date OR -1 on failure
+ */
 auto get_file_mod_time(const std::string &filename) -> long {
     struct stat file_stat;
 
@@ -197,7 +241,11 @@ auto get_file_mod_time(const std::string &filename) -> long {
     return file_stat.st_mtim.tv_sec;
 }
 
-// if a directory doesn't end in /, insert it.
+/**
+ * @brief inserts a / at the end of a string if it doesn't exist
+ * 
+ * @param directory the directory to modify.
+ */
 auto fix_directory(std::string &directory) -> void {
     if (!directory.ends_with('/') && directory.length() > 0) {
         directory.push_back('/');

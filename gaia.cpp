@@ -6,6 +6,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <format>
+#include <functional>
 #include <numeric>
 #include <set>
 #include <sys/stat.h>
@@ -21,13 +23,15 @@
 #define echo(msg, ...) \
     if (gaia::echo) printf("" msg "\n", ##__VA_ARGS__)
 
+auto add_many(const std::function<void(std::string)> &func, const std::vector<std::string> &input) -> void;
+auto combine_vector(const std::vector<std::string> &input, const std::string &prefix = "") -> std::string;
+auto get_file_mod_time(const std::string &filename) -> long;
+
 auto recompile_gaia() -> void;
 auto compilation_invalid() -> bool;
 auto create_build_directory() -> void;
 
 auto handle_flags(const std::vector<std::string> &args) -> void;
-
-auto combine_vector(const std::vector<std::string> &input, const std::string &prefix = "") -> std::string;
 
 auto main(const int argc, const char **argv) -> int {
     handle_flags(std::vector<std::string>{argv, argv +argc});
@@ -38,7 +42,6 @@ auto main(const int argc, const char **argv) -> int {
     /* PLACE BUILD CODE HERE */
     return 0;
 }
-
 
 auto gaia::build() -> void {
     if (gaia::compiler == "") {
@@ -62,79 +65,50 @@ auto gaia::build() -> void {
     const std::string files = combine_vector(gaia::input_files, gaia::input_directory);
     const std::string flags = combine_vector(gaia::flags);
 
-    const std::string command = gaia::compiler +
-        " -o " + gaia::output_directory + gaia::output_name +
-        " " + flags
-        + " " + files;
+    const std::string compile_command = std::format("{} -o {}{}{} {}",
+        gaia::compiler, gaia::output_directory, gaia::output_name,
+        (flags.length() > 0 ? " " + flags : ""),
+        (files.length() > 0 ? " " + files : ""));
 
-    if (setenv("compile_cmd", command.c_str(), 1) == -1) {
+    if (setenv("compile_cmd", compile_command.c_str(), 1) == -1) {
         error("could not set environment variable");
     }
 
     if (compilation_invalid()) {
         info("compiling program");
-        echo("%s", command.c_str());
-        if (std::system(command.c_str()) != 0) error("error during compilation");
+        echo("%s", compile_command.c_str());
+        if (std::system(compile_command.c_str()) != 0) error("error during compilation");
     } else {
         info("no code updated, skipping compilation");
     }
 
     for (const auto extra : gaia::extra_commands) {
         info("running extra command");
-        echo("%s", command.c_str());
+        echo("%s", extra.c_str());
         std::system(extra.c_str());
     }
 }
 
-auto gaia::add_command(const std::string &command) -> void {
-    gaia::extra_commands.push_back(command);
-}
-
-auto gaia::add_commands(const std::vector<std::string> &commands) -> void {
-    std::for_each(commands.begin(), commands.end(),
-        [](const auto &command) { gaia::add_command(command); });
-}
-
-auto gaia::add_file(const std::string &file) -> void {
-    gaia::input_files.push_back(file);
-}
-
-auto gaia::add_files(const std::vector<std::string> &files) -> void {
-    std::for_each(files.begin(), files.end(),
-        [](const auto &file) { gaia::add_file(file); });
-}
-
-auto gaia::add_flag(const std::string &flag) -> void {
-    gaia::flags.push_back(flag);
-}
-
-auto gaia::add_flags(const std::vector<std::string> &flags) -> void {
-    std::for_each(flags.begin(), flags.end(),
-        [](const auto &flag) { gaia::add_flag(flag); });
-}
-
 // checks if the program needs to be recompiled
 auto recompile_gaia() -> void {
-    const char *gaia_src_file = "gaia.cpp";
-    const char *gaia_file = "gaia";
-    struct stat gaia_src_stat;
-    struct stat gaia_stat;
+    const long gaia_mod_time = get_file_mod_time("gaia");
+    const long gaia_src_mod_time = get_file_mod_time("gaia.cpp");
 
-    if (stat(gaia_src_file, &gaia_src_stat) == 0 && stat(gaia_file, &gaia_stat) == 0) {
-        const auto src_time = gaia_src_stat.st_mtim;
-        const auto gaia_time = gaia_stat.st_mtim;
+    if (gaia_mod_time == -1 || gaia_src_mod_time == -1) { error("error getting file modification times!"); }
+    
+    // checks if the source code has changed since gaia was last compiled
+    if (gaia_src_mod_time > gaia_mod_time) {
+        info("recompiling gaia");
+        const std::string compile_command = std::format("{} -std=c++20 -o gaia gaia.cpp",
+            gaia::compiler); 
+
+        const std::string run_command = std::format("./gaia{}{}",
+            (gaia::force_compile ? " -f" : ""),
+            (gaia::echo ? " -e" : ""));
         
-        // checks if the source code has changed since gaia was last compiled
-        if (src_time.tv_sec > gaia_time.tv_sec) {
-            info("recompiling gaia");
-            const std::string compile_command = gaia::compiler + " -o gaia gaia.cpp";
-            const std::string run_command = std::string("./gaia") + (gaia::force_compile ? " -f" : "") + (gaia::echo ? " -e" : "");
-            std::system(compile_command.c_str());
-            std::system(run_command.c_str());
-            std::exit(0);
-        }
-    } else {
-        error("could not determine file statistics.");
+        std::system(compile_command.c_str());
+        std::system(run_command.c_str());
+        std::exit(0);
     }
 }
 
@@ -197,4 +171,43 @@ auto combine_vector(const std::vector<std::string> &input, const std::string &pr
     std::string combined = std::reduce(input_spaces.begin(), input_spaces.end(), std::string(""));
     combined.pop_back(); // hacky way to get rid of the final space
     return combined;
+}
+
+// runs foreach on each member of a vector
+auto add_many(const std::function<void(std::string)> &func, const std::vector<std::string> &input) -> void {
+    std::for_each(input.begin(), input.end(),
+        [&func](const auto &e) { func(e); } );
+}
+
+auto gaia::add_command(const std::string &command) -> void {
+    gaia::extra_commands.push_back(command);
+}
+
+auto gaia::add_commands(const std::vector<std::string> &commands) -> void {
+    add_many(gaia::add_command, commands);
+}
+
+auto gaia::add_file(const std::string &file) -> void {
+    gaia::input_files.push_back(file);
+}
+
+auto gaia::add_files(const std::vector<std::string> &files) -> void {
+    add_many(gaia::add_file, files);
+}
+
+auto gaia::add_flag(const std::string &flag) -> void {
+    gaia::flags.push_back(flag);
+}
+
+auto gaia::add_flags(const std::vector<std::string> &flags) -> void {
+    add_many(gaia::add_flag, flags);
+}
+
+// gets the time the file was last modified, -1 on failure.
+auto get_file_mod_time(const std::string &filename) -> long {
+    struct stat file_stat;
+
+    if (stat(filename.c_str(), &file_stat) != 0) return -1;
+
+    return file_stat.st_mtim.tv_sec;
 }

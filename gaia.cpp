@@ -14,8 +14,10 @@
 #include <sys/types.h>
 
 #define error(msg, ...)                                   \
-    fprintf(stderr, "[-] " msg "\n", ##__VA_ARGS__); \
-    std::exit(1)
+    do {                                                  \
+        fprintf(stderr, "[-] " msg "\n", ##__VA_ARGS__);  \
+        std::exit(1);                                     \
+    } while (0)
 
 #define info(msg, ...) \
     printf("[i] " msg "\n", ##__VA_ARGS__)
@@ -23,8 +25,10 @@
 #define echo(msg, ...) \
     if (gaia::echo) printf("" msg "\n", ##__VA_ARGS__)
 
-auto add_many(const std::function<void(std::string)> &func, const std::vector<std::string> &input) -> void;
-auto combine_vector(const std::vector<std::string> &input, const std::string &prefix = "") -> std::string;
+auto add_many(const std::function<void(std::string)> &func,
+    const std::vector<std::string> &input) -> void;
+auto combine_vector(const std::vector<std::string> &input,
+    const std::string &prefix = "") -> std::string;
 auto get_file_mod_time(const std::string &filename) -> long;
 auto fix_directory(std::string &directory) -> void;
 
@@ -60,9 +64,7 @@ auto gaia::build() -> void {
     recompile_gaia();
     create_build_directory();
 
-    if (gaia::input_files.size() == 0) {
-        error("no input files given!");
-    }
+    if (gaia::input_files.size() == 0) error("no input files given!");
 
     fix_directory(gaia::output_directory);
     fix_directory(gaia::input_directory);
@@ -75,9 +77,8 @@ auto gaia::build() -> void {
         (flags.length() > 0 ? " " + flags : ""),
         (files.length() > 0 ? " " + files : ""));
 
-    if (setenv("compile_cmd", compile_command.c_str(), 1) == -1) {
+    if (setenv("compile_cmd", compile_command.c_str(), 1) == -1)
         error("could not set environment variable");
-    }
 
     if (compilation_invalid()) {
         info("compiling program");
@@ -99,7 +100,8 @@ auto recompile_gaia() -> void {
     const long gaia_mod_time = get_file_mod_time("gaia");
     const long gaia_src_mod_time = get_file_mod_time("gaia.cpp");
 
-    if (gaia_mod_time == -1 || gaia_src_mod_time == -1) { error("error getting file modification times!"); }
+    if (gaia_mod_time == -1 || gaia_src_mod_time == -1)
+        error("error getting file modification times!");
     
     // checks if the source code has changed since gaia was last compiled
     if (gaia_src_mod_time > gaia_mod_time) {
@@ -113,6 +115,8 @@ auto recompile_gaia() -> void {
         
         std::system(compile_command.c_str());
         std::system(run_command.c_str());
+
+        // we exit here, otherwise there's an infinite loop.
         std::exit(0);
     }
 }
@@ -120,19 +124,20 @@ auto recompile_gaia() -> void {
 // returns if the files have to be recompiled
 auto compilation_invalid() -> bool {
     if (gaia::force_compile) return true;
-    const std::string output_file = gaia::output_directory + gaia::output_name;
-    struct stat output_stat;
 
-    if (stat(output_file.c_str(), &output_stat) != 0) return true;
+    const std::string output_file = std::format("{}{}",
+        gaia::output_directory,
+        gaia::output_name);
+    
+    const long output_mod_time = get_file_mod_time(output_file);
+
+    if (output_mod_time == -1) return true;
 
     for (std::string file : gaia::input_files) {
-        file = gaia::input_directory + file;
-        struct stat file_stat;
+        file = std::format("{}{}", gaia::input_directory, file);
+        const long file_mod_time = get_file_mod_time(file);
 
-        if (stat(file.c_str(), &file_stat) != 0) return true;
-
-        const auto file_mod_time = file_stat.st_mtim.tv_sec;
-        const auto output_mod_time = output_stat.st_mtim.tv_sec;
+        if (file_mod_time == -1) return true;
 
         if (file_mod_time > output_mod_time) return true;
     }
@@ -143,9 +148,8 @@ auto compilation_invalid() -> bool {
 auto handle_flags(const std::vector<std::string> &args) -> void {
 
     for (auto arg = args.begin() + 1; arg != args.end(); arg++) {
-        const auto flag = [&arg](std::set<std::string> flags) -> bool {
-            const auto search = flags.find(*arg);
-            return search != flags.end();
+        const auto flag = [&arg](const std::set<std::string> &flags) -> bool {
+            return flags.contains(*arg);
         };
 
         if (flag({ "-f", "--force" })) {

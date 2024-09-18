@@ -42,6 +42,8 @@ auto main(const int argc, const char **argv) -> int {
     handle_flags(std::vector<std::string>{argv, argv +argc});
 
     gaia::output_directory = "build";
+    gaia::add_command("echo $compile_cmd");
+    gaia::add_flags({ "-Wall", "-Wextra" });
     gaia::add_file("src/main.cpp");
     gaia::build();
     /* PLACE BUILD CODE HERE */
@@ -202,17 +204,11 @@ auto create_build_directory() -> void {
 auto combine_vector(const std::vector<std::string> &input, const std::string &prefix) -> std::string {
     if (input.size() == 0) return "";
 
-    std::vector<std::string> input_spaces(input.size());
-    
-    std::transform(input.begin(), input.end(), input_spaces.begin(),
-        [prefix](const auto &element) {
-            return prefix + element + " ";
+    std::string combined = std::accumulate(input.begin(), input.end(), std::string(""), 
+        [](auto a, auto b) {
+            return std::move(a) + " " + std::move(b);
         });
 
-    std::string combined = std::reduce(input_spaces.begin(), 
-        input_spaces.end(), std::string(""));
-
-    combined.pop_back(); // hacky way to get rid of the final space
     return combined;
 }
 

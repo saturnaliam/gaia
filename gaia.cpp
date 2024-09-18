@@ -205,8 +205,8 @@ auto combine_vector(const std::vector<std::string> &input, const std::string &pr
     if (input.size() == 0) return "";
 
     std::string combined = std::accumulate(input.begin(), input.end(), std::string(""), 
-        [](auto a, auto b) {
-            return std::move(a) + " " + std::move(b);
+        [prefix](auto a, auto b) {
+            return prefix + std::move(a) + " " + std::move(b);
         });
 
     return combined;

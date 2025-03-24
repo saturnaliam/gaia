@@ -25,16 +25,16 @@
 #define ECHO(msg, ...) \
     if (gaia_echo) printf("" msg "\n", ##__VA_ARGS__)
 
-/* === gaia variables & functions */
-inline bool gaia_echo = false;                       // if the commands that are run should be echoed
-inline bool gaia_force_compile = false;              // if compilation should be forced, even if no code was updated.
-inline std::string gaia_compiler = "";               // the compiler to use, defaults to the one used to compile gaia
-inline std::string gaia_output_name = "main";        // the output filename, defaults to main
-inline std::string gaia_input_directory = "";        // the directory that contains the input files, appended to the start of each input file
-inline std::string gaia_output_directory = "";       // the directory to output to
-inline std::vector<std::string> gaia_flags;          // compile flags to use
-inline std::vector<std::string> gaia_input_files;    // the files to compile
-inline std::vector<std::string> gaia_extra_commands; // any extra commands to run
+/* === gaia variables & functions === */
+inline bool gaia_echo = false;                       /* if the commands that are run should be echoed                                         */
+inline bool gaia_force_compile = false;              /* if compilation should be forced, even if no code was updated                          */
+inline std::string gaia_compiler = "";               /* the compiler to use, defaults to the one used to compile gaia                         */
+inline std::string gaia_output_name = "main";        /* the output filename, defaults to main                                                 */
+inline std::string gaia_input_directory = "";        /* the directory that contains the input files, appended to the start of each input file */
+inline std::string gaia_output_directory = "";       /* the directory to output to                                                            */
+inline std::vector<std::string> gaia_flags;          /* compile flags to use                                                                  */
+inline std::vector<std::string> gaia_input_files;    /* the files to compile                                                                  */
+inline std::vector<std::string> gaia_extra_commands; /* any extra commands to run                                                             */
 
 auto build() -> void;
 
@@ -46,7 +46,7 @@ auto add_files(const std::vector<std::string> &files) -> void;
 auto add_flags(const std::vector<std::string> &flags) -> void;
 auto add_commands(const std::vector<std::string> &commands) -> void;
 
-/* helper functions (shouldn't be used by the user!) */
+/* === helper functions === */
 auto add_many(const std::function<void(std::string)> &func,
     const std::vector<std::string> &input) -> void;
 auto combine_vector(const std::vector<std::string> &input,
@@ -61,14 +61,17 @@ auto create_build_directory() -> void;
 auto handle_flags(const std::vector<std::string> &args) -> void;
 
 auto main(const int argc, const char **argv) -> int {
-    handle_flags(std::vector<std::string>{argv, argv +argc});
+    /* handles flags, if you do not plan on using any flags, this can be safely removed. */
+    handle_flags(std::vector<std::string>{argv, argv + argc});
 
+    /* sample build, remove and customize as needed. */
     gaia_output_directory = "build";
     add_command("echo $compile_cmd");
     add_flags({ "-Wall", "-Wextra" });
     add_file("src/main.cpp");
+
+
     build();
-    /* PLACE BUILD CODE HERE */
     return 0;
 }
 
@@ -78,7 +81,7 @@ auto main(const int argc, const char **argv) -> int {
  * 
  */
 auto build() -> void {
-    // setting the compiler to the one used for gaia, if none is given
+    /* setting the compiler to the one used for gaia if one isn't given */
     if (gaia_compiler == "") {
         #if defined(__clang__)
         gaia_compiler = "clang++";
@@ -93,7 +96,8 @@ auto build() -> void {
     recompile_gaia();
     create_build_directory();
 
-    if (gaia_input_files.size() == 0) ERROR("no input files given!");
+    if (gaia_input_files.size() == 0)
+        ERROR("no input files given!");
 
     fix_directory(gaia_output_directory);
     fix_directory(gaia_input_directory);
@@ -134,11 +138,10 @@ auto recompile_gaia() -> void {
     const long gaia_mod_time = get_file_mod_time("gaia");
     const long gaia_src_mod_time = get_file_mod_time("gaia.cpp");
 
-    // this probably means there's some fucked up file issue
     if (gaia_mod_time == -1 || gaia_src_mod_time == -1)
         ERROR("error getting file modification times!");
     
-    // checks if the source code has changed since gaia was last compiled
+    /* checks if the source code has changed since gaia was last compiled */
     if (gaia_src_mod_time > gaia_mod_time) {
         INFO("recompiling gaia");
         const std::string compile_command = std::format("{} -std=c++20 -o gaia gaia.cpp",
@@ -151,7 +154,7 @@ auto recompile_gaia() -> void {
         std::system(compile_command.c_str());
         std::system(run_command.c_str());
 
-        // we exit here, otherwise there's an infinite loop.
+        /* we exit here, otherwise there's an infinite loop. */
         std::exit(0);
     }
 }
@@ -163,7 +166,8 @@ auto recompile_gaia() -> void {
  * @return false the program won't be recompiled
  */
 auto compilation_invalid() -> bool {
-    if (gaia_force_compile) return true;
+    if (gaia_force_compile)
+        return true;
 
     const std::string output_file = std::format("{}{}",
         gaia_output_directory,
@@ -171,16 +175,19 @@ auto compilation_invalid() -> bool {
     
     const long output_mod_time = get_file_mod_time(output_file);
 
-    // this (usually) means the output file doesn't exist yet
-    if (output_mod_time == -1) return true;
+    /* this (usually) means the output file doesn't exist yet */
+    if (output_mod_time == -1)
+        return true;
 
     for (std::string file : gaia_input_files) {
         file = std::format("{}{}", gaia_input_directory, file);
         const long file_mod_time = get_file_mod_time(file);
 
-        if (file_mod_time == -1) return true;
+        if (file_mod_time == -1)
+            return true;
 
-        if (file_mod_time > output_mod_time) return true;
+        if (file_mod_time > output_mod_time)
+            return true;
     }
 
     return false;
@@ -211,9 +218,8 @@ auto handle_flags(const std::vector<std::string> &args) -> void {
  */
 auto create_build_directory() -> void {
     namespace fs = std::filesystem;
-    if (!fs::exists(gaia_output_directory)) {
+    if (!fs::exists(gaia_output_directory))
         fs::create_directory(gaia_output_directory);
-    }
 }
 
 /**
@@ -224,7 +230,8 @@ auto create_build_directory() -> void {
  * @return std::string the new, space separated string
  */
 auto combine_vector(const std::vector<std::string> &input, const std::string &prefix) -> std::string {
-    if (input.size() == 0) return "";
+    if (input.size() == 0)
+        return "";
 
     std::string combined = std::accumulate(input.begin(), input.end(), std::string(""), 
         [prefix](auto a, auto b) {
@@ -254,7 +261,8 @@ auto add_many(const std::function<void(std::string)> &func, const std::vector<st
 auto get_file_mod_time(const std::string &filename) -> long {
     struct stat file_stat;
 
-    if (stat(filename.c_str(), &file_stat) != 0) return -1;
+    if (stat(filename.c_str(), &file_stat) != 0)
+        return -1;
 
     return file_stat.st_mtim.tv_sec;
 }
@@ -265,9 +273,8 @@ auto get_file_mod_time(const std::string &filename) -> long {
  * @param directory the directory to modify.
  */
 auto fix_directory(std::string &directory) -> void {
-    if (!directory.ends_with('/') && directory.length() > 0) {
+    if (!directory.ends_with('/') && directory.length() > 0)
         directory.push_back('/');
-    }
 }
 
 auto add_command(const std::string &command) -> void {
